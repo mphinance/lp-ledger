@@ -19,6 +19,22 @@ Go subscribe to [**Ryan LePiane — LP Options Academy**](https://ryanlepiane.su
 
 ---
 
+## Screenshots
+
+### Track Record Panel
+![Track Record](assets/track_record.png)
+
+### Live Book & Risk Panel
+![Live Book](assets/live_book.png)
+
+### Weekly Card Export
+![Weekly Card](assets/weekly_card.png)
+
+### AI Assist (BYOK) Settings
+![AI Settings](assets/settings.png)
+
+---
+
 ## The privacy model (the whole point)
 
 Everything runs **on your device**. Screenshots are read by **Tesseract.js (WASM)** inside
