@@ -1,30 +1,250 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>LP Ledger</title>
-<style>
-  :root { --navy:#1b2a4a; --cream:#f4f2ec; }
-  html,body{height:100%;margin:0}
-  body{background:var(--cream);color:var(--navy);
-    font-family:Georgia,'Times New Roman',serif;
-    display:flex;align-items:center;justify-content:center;text-align:center}
-  .wrap{max-width:640px;padding:2rem}
-  h1{font-size:3rem;letter-spacing:.02em;margin:0 0 .25rem}
-  .mono{font-family:ui-monospace,Menlo,Consolas,monospace}
-  p{font-size:1.1rem;line-height:1.6;opacity:.85}
-  .tag{text-transform:uppercase;letter-spacing:.25em;font-size:.7rem;opacity:.6}
-  .foot{margin-top:2.5rem;font-size:.75rem;opacity:.5}
-</style>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>LP Ledger — options track record &amp; live book</title>
+<meta name="description" content="LP Ledger: in-browser OCR of tastytrade screenshots into an options track record and live book. Screenshots never leave your device." />
+<meta name="theme-color" content="#1b2a4a" />
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="assets/icon-192.png" />
+<link rel="apple-touch-icon" href="assets/icon-192.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet" crossorigin="anonymous" />
+<link rel="stylesheet" href="css/app.css" />
 </head>
 <body>
-  <div class="wrap">
-    <div class="tag">LP Options Academy</div>
-    <h1>LP&nbsp;Ledger</h1>
-    <p>Turn your tastytrade screenshots into a clean options track record and live book. Runs entirely in your browser. Your data never leaves your device.</p>
-    <p class="mono">Coming soon.</p>
-    <div class="foot">A free build for Ryan LePiane &middot; not affiliated with tastytrade</div>
+
+<header class="topbar">
+  <div class="brand">
+    <!-- CSS-drawn chevron logo: visible in generic (dark) skin -->
+    <span class="logo-css" id="logo-css" aria-hidden="true"></span>
+    <!-- Image logo: visible in LP Ledger skin (and future whitelabels) -->
+    <div class="logo-img-wrap" id="logo-img-wrap" aria-hidden="true">
+      <img class="logo-img" id="brand-logo" src="" alt="" />
+    </div>
+    <div class="brand-t">
+      <strong id="brand-name">LP&nbsp;LEDGER</strong>
+      <span id="brand-tagline">options track record · live book · on-device OCR</span>
+    </div>
   </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="track">Track Record</button>
+    <button class="tab" data-tab="book">Live Book &amp; Risk</button>
+    <button class="tab" data-tab="monitor">Monitor</button>
+    <button class="tab" data-tab="review">Review <span class="tab-badge" id="review-badge">0</span></button>
+    <button class="tab" data-tab="import">Import</button>
+    <button class="tab" data-tab="share">Share</button>
+  </nav>
+  <div class="topright">
+    <span class="privacy-pill" title="100% on-device">🔒 on-device</span>
+    <button class="btn ghost" id="export-csv">CSV</button>
+    <button class="btn ghost" id="reset-seed">Reset</button>
+  </div>
+</header>
+
+<div class="samplebar" id="samplebar" hidden>
+  <span class="sample-chip">SAMPLE</span>
+  <span>Demo data: Ryan LePiane's verified public record (Feb–Jun 2026). Drop your own tastytrade screenshots to replace it with yours.</span>
+</div>
+
+<div class="provisional" id="provisional">
+  <span>⚠ Provisional — <b>0</b> OCR'd cells unconfirmed. Numbers can change after review.</span>
+  <button class="btn small show" id="provisional-go">Review now →</button>
+</div>
+
+<main>
+
+<!-- ============ TRACK RECORD ============ -->
+<section class="panel active" id="panel-track">
+  <div class="panel-head">
+    <h1>Track Record <span class="srctag track">source · realized closes</span></h1>
+    <div class="seedcheck" id="seed-check"></div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card chart-card">
+    <div class="card-h"><h2>Cumulative Realized P/L</h2><span class="card-sub">each step = one closed trade · booked at exit</span></div>
+    <div class="chart-wrap"><div id="equity"></div><div class="eq-tip" id="eq-tip"></div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <div class="card-h"><h2>Performance by Strategy</h2></div>
+      <div id="stratbars" class="stratbars"></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Closed Trades</h2><span class="card-sub"><b id="trades-count">0</b> trades</span></div>
+      <div class="scroll tall">
+        <table id="trades-table" class="data">
+          <thead><tr><th>Closed</th><th>Opened</th><th>Ticker</th><th>Strategy</th><th>Type</th><th class="r">Realized P/L</th><th>Notes</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIVE BOOK ============ -->
+<section class="panel" id="panel-book">
+  <div class="panel-head">
+    <h1>Live Book &amp; Risk <span class="srctag book">source · positions sheet</span></h1>
+    <div class="seedcheck"><b id="book-count">0</b> open positions · click any cell to edit</div>
+  </div>
+
+  <div class="book-layout">
+    <div class="card book-card">
+      <div class="card-h"><h2>Open Positions</h2><span class="card-sub">an upgraded mirror of the 10-column tastytrade sheet</span></div>
+      <div class="scroll book-scroll">
+        <table id="book-table" class="data book">
+          <thead><tr>
+            <th>Trade Description</th><th class="r">Credit</th><th class="r">Debit</th>
+            <th class="r">Max Profit</th><th class="r">Max Loss</th><th class="r">BP $</th><th class="r">BP %</th>
+            <th>Position</th><th>Risk</th><th class="r">Opened</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="fineprint">🔒 This sheet is <b>assembled for you</b>: live fields from your Active Monitor, static fields (Max P/L, BP, credit/debit) from the order ticket captured once at open, all OCR'd <b>entirely on your device</b>, no upload, no broker login. You stopped typing it. <b>Risk Type</b> is auto-derived (spreads/long options = Defined; naked shorts &amp; long futures = Undefined) and editable; <b>Position</b> (Core/Supp) is your discretionary tag. <span class="der">·d</span> marks an auto-derived value; <span class="needs">⊕ ticket</span> means a one-time static capture is still needed.</p>
+    </div>
+
+    <aside class="card summary-card">
+      <div class="card-h"><h2>Portfolio Summary</h2></div>
+      <div class="mix-block">
+        <div class="mix-donuts">
+          <div><div id="mix-core" class="donut"></div><span>Mix</span></div>
+          <div><div id="mix-risk" class="donut"></div><span>Risk</span></div>
+        </div>
+        <div id="mix-legend" class="mix-legend"></div>
+      </div>
+      <div class="sec-label">Buying Power</div>
+      <div id="bp-gauges"></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ============ MONITOR ============ -->
+<section class="panel" id="panel-monitor">
+  <div class="panel-head">
+    <h1>Monitor <span class="srctag mon">source · active monitor · primary live book</span></h1>
+    <button class="btn small" id="monitor-merge">Merge stitched ⛓</button>
+  </div>
+  <div class="card">
+    <div class="card-h"><h2>Live Positions</h2><span class="card-sub">the weekly drop that replaces hand-typing the sheet — refreshes live P/L on every position</span></div>
+    <div class="scroll tall">
+      <table id="monitor-table" class="data"><thead><tr><th>Symbol</th><th>Strategy</th><th class="r">P/L Open</th><th class="r">Opn%</th><th class="r">Mark</th><th class="r">D's Opn</th><th class="r">DTE</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REVIEW ============ -->
+<section class="panel" id="panel-review">
+  <div class="panel-head">
+    <h1>Review &amp; Confirm <span class="srctag rev">confirm a picture, not the source</span></h1>
+    <div class="seedcheck">High-confidence cells auto-accept. You only touch the flagged ones.</div>
+  </div>
+
+  <details class="card vision-card" id="vision-settings">
+    <summary><span class="vs-title">✨ AI assist (BYOK)</span> <span class="vs-state" id="vision-state">off · default engine is on-device Tesseract</span></summary>
+    <div class="vs-body">
+      <p class="vs-note">Optional accelerator for <b>flagged cells only</b>. When you click "Read with AI", <b>only the cropped cell</b> (never the full screenshot) is sent to the endpoint you choose, with your own key. Your key is held in <b>sessionStorage only</b> — never saved to disk, never sent anywhere but that endpoint. Default engine stays on-device; this is opt-in.</p>
+      <label class="vs-toggle"><input type="checkbox" id="vision-enabled" /> Enable AI assist on flagged cells</label>
+      <div class="vs-grid">
+        <label class="ctl">Provider <select id="vision-provider"></select></label>
+        <label class="ctl">Model <input type="text" id="vision-model" placeholder="model id" /></label>
+        <label class="ctl" id="vision-baseurl-wrap">Base URL <input type="text" id="vision-baseurl" placeholder="http://localhost:11434/v1" /></label>
+        <label class="ctl">API key <input type="password" id="vision-key" placeholder="sk-… (sessionStorage only)" autocomplete="off" /></label>
+      </div>
+      <div class="vs-status" id="vision-status"></div>
+    </div>
+  </details>
+
+  <div class="card review-card">
+    <div id="review-queue"></div>
+  </div>
+</section>
+
+<!-- ============ IMPORT ============ -->
+<section class="panel" id="panel-import">
+  <div class="panel-head"><h1>Import Screenshots</h1></div>
+  <div class="import-grid">
+    <div class="card">
+      <div id="dropzone" class="dropzone">
+        <div class="dz-icon">⤓</div>
+        <strong>Drop, paste, or click</strong>
+        <span>tastytrade screenshots — they never leave this device</span>
+        <input type="file" id="file-input" accept="image/*" multiple hidden />
+      </div>
+      <div class="ocr-progress" id="ocr-progress"></div>
+      <div class="ocr-log" id="ocr-log"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>What it reads</h2></div>
+      <ul class="layouts">
+        <li><b class="t1">Primary</b> Active / Positions Monitor (dark grid) → the live open book. <i>Drop weekly (3 stitched), then Merge.</i></li>
+        <li><b class="t2">Static</b> Order ticket / Curve (dark) → Max P/L, BP $/%, credit/debit. <i>Captured once per new trade.</i></li>
+        <li><b class="t3">Realized</b> Order Chains, fully CLSD (dark) → Track Record.</li>
+        <li><b class="tx">One-time</b> Type A Positions Spreadsheet (white grid) → import existing history (back-fill only).</li>
+      </ul>
+      <div class="sec-label">Fee model</div>
+      <label class="fee-toggle"><input type="checkbox" id="fee-enabled" /> Subtract estimated fees (gross → net)</label>
+      <div class="fee-inputs">
+        <label>Open /ct <input type="number" step="0.01" id="fee-open" /></label>
+        <label>Close /ct <input type="number" step="0.01" id="fee-close" /></label>
+        <label>Clear/Reg <input type="number" step="0.01" id="fee-clear" /></label>
+      </div>
+      <p class="fee-note" id="fee-note"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SHARE ============ -->
+<section class="panel" id="panel-share">
+  <div class="panel-head">
+    <h1>Share <span class="srctag track">weekly card · your handle is the hero</span></h1>
+  </div>
+  <div class="share-grid">
+    <div class="card">
+      <div class="card-h"><h2>Weekly Card</h2><span class="card-sub">1600×900 PNG · deterministic render</span></div>
+      <div class="card-controls">
+        <label class="ctl">Your handle <input type="text" id="card-handle" placeholder="@yourhandle" /></label>
+        <label class="ctl">Week ending <input type="date" id="card-week" /></label>
+        <label class="ctl tog"><input type="checkbox" id="card-dollars" /> Show $ amounts <span class="hint">(off = % + ratios only; safe to post)</span></label>
+      </div>
+      <div class="card-actions">
+        <button class="btn primary big" id="card-copy">📋 Copy to clipboard</button>
+        <button class="btn" id="card-download">Download PNG</button>
+      </div>
+      <div class="card-status" id="card-status">Copy drops a PNG straight onto your clipboard — paste into Substack/X.</div>
+      <div class="card-preview-wrap"><div id="card-preview" class="card-preview"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-h"><h2>Backup</h2></div>
+      <p class="backup-blurb">JSON is the lossless, cross-device backup (everything: trades, book, summary, review). CSV is for build.py interop.</p>
+      <div class="card-actions col">
+        <button class="btn primary" id="json-export">⬇ Export JSON backup</button>
+        <button class="btn" id="json-import">⬆ Import JSON backup</button>
+        <input type="file" id="json-file" accept="application/json,.json" hidden />
+      </div>
+      <div class="backup-status" id="backup-status"></div>
+      <div class="json-status" id="json-status"></div>
+      <p class="fineprint" style="margin-top:14px">Backups carry parsed values + review metadata only — never the screenshot images (those stay in-session, on-device).</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <b>LP Ledger</b> by <a href="https://ryanlepiane.substack.com" target="_blank" rel="noopener">Ryan LePiane — LP Options Academy</a> (go subscribe).
+  <span class="foot-credit">Built with <a href="https://momentumphinance.substack.com" target="_blank" rel="noopener">mphinance</a>.</span>
+  <span class="foot-disclaimer">Educational only; not investment advice. Past performance does not guarantee future results. Not affiliated with tastytrade.</span>
+</footer>
+
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
