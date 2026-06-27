@@ -14,7 +14,7 @@ in the live book. The Track Record panel and the Weekly Card both carry an hones
 (`Feb–Jun 2026 · 18 weeks · 88 trades`) so the number never reads as all-time. It generalizes
 to **any tastytrade user** — drop your own screenshots and they replace the sample.
 
-A free gift for Ryan, and a portfolio piece for [Momentum Phinance](https://momentumphinance.substack.com).
+A free gift for Ryan, and a portfolio piece for [Momentum Phinance](https://mphinance.substack.com).
 Go subscribe to [**Ryan LePiane — LP Options Academy**](https://ryanlepiane.substack.com).
 
 ---
