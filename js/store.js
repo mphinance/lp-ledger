@@ -165,6 +165,41 @@ export function applyTicketToBook(openBook, ticket, captureDate) {
   return { matched: true, row: r, filled };
 }
 
+// ---- Capital Requirement CSV: fill BP usage on the open book ---------------
+// tastytrade's Capital Requirement report is grouped by UNDERLYING, so each row
+// is the buying-power requirement for one symbol. We attribute it to an open
+// position only when the symbol matches EXACTLY ONE live row — a symbol with
+// several open positions (two SPY spreads) can't be split across legs from a
+// grouped total, so those are left for the portfolio summary only (the caller
+// still sums every row into the headline BP-usage figure). BP is one of the
+// several "static" fields, so needsStatic is left intact (the ticket still
+// supplies Max P/L + credit/debit).
+export function applyCapReqToBook(openBook, capReq, captureDate) {
+  const rows = (capReq && capReq.rows) || [];
+  let filled = 0, updated = 0, ambiguous = 0;
+  const unmatched = [];
+  for (const cr of rows) {
+    const sym = (cr.symbol || "").toUpperCase();
+    if (!sym) continue;
+    const matches = openBook.filter((r) => !r.closed &&
+      ((r.symbol || "").toUpperCase() === sym || extractSymbol(r.trade_description) === sym));
+    if (matches.length === 0) { unmatched.push(sym); continue; }
+    if (matches.length > 1) { ambiguous++; continue; }
+    const r = matches[0];
+    const had = r.bp_usd != null;
+    let touched = false;
+    if (cr.bp_usd != null) { r.bp_usd = cr.bp_usd; touched = true; }
+    if (cr.bp_pct != null) { r.bp_pct = cr.bp_pct; touched = true; }
+    if (touched) {
+      r.bp_source = "capreq";
+      r.bp_asof = captureDate || new Date().toISOString().slice(0, 10);
+      if (!r.static_source) r.static_source = "capreq";
+      had ? updated++ : filled++;
+    }
+  }
+  return { filled, updated, ambiguous, unmatched };
+}
+
 // ---- one-time history import (DEMOTED Type A spreadsheet path) --------------
 // Back-fill only: merge OCR'd spreadsheet rows into the store WITHOUT wiping
 // live/ticket positions. Existing rows are enriched; unseen rows are appended.

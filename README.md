@@ -59,6 +59,10 @@ the service worker for offline use).
    - **Order Chains, fully CLSD (Type B)** → books a realized trade onto the **Track Record**.
    - **Type A Positions Spreadsheet** → **optional one-time history import** (back-fill). It no
      longer drives the live book; it just seeds your past.
+   - **Capital Requirement CSV (tastytrade)** → drop the `.csv` export from tastytrade's
+     positions risk panel to **import your BP Usage** without OCR. It fills each position's
+     **BP $/%** (matched by underlying) and drives the portfolio **BP Usage** gauge from the
+     report total. Read straight from the file — never uploaded, same on-device promise.
 4. **Edit anything.** Every Live Book cell is click-to-edit; Position (Core/Supp) and Risk
    (Def/Undef) are dropdowns. Low-confidence OCR cells are highlighted "needs review".
 5. **Reset** restores Ryan's seed. **Export** downloads your track record as CSV.
@@ -93,6 +97,7 @@ Pure static files, no build step. ES modules.
 | `js/charts.js` | Dependency-free inline-SVG equity curve (green/red payoff shading), strategy bars, BP gauges, mix donuts — so it works fully offline. |
 | `js/card.js` | The Weekly Card export — a **deterministic Canvas 2D render** (1600×900, no external lib, works offline) → copy-to-clipboard / download PNG. |
 | `js/backup.js` | First-class JSON export/import with a `schemaVersion` stamp + migration shim + >7-day backup nudge. |
+| `js/csv.js` | tastytrade **Capital Requirement CSV** import — dependency-free RFC-4180 reader + tolerant `$`/`(neg)`/`%` number parsing + fuzzy header-role detection (Requirement / Buying Power Effect, BP Usage %, Initial/Maintenance Requirement). Feeds per-position BP $/% and the portfolio BP-usage total. Never fabricates. Validated headless in `js/capreq.test.mjs`. |
 | `js/app.js` | State, localStorage, panels, drag/drop + paste ingest, editing, review wiring, provisional ribbon, share. |
 | `manifest.json` / `sw.js` | PWA manifest + service worker (scoped to `/lp-ledger/`), caching the app shell **and** the Tesseract WASM + `eng.traineddata` for offline OCR. |
 
@@ -190,6 +195,7 @@ Guiding rule throughout: **never fabricate.** Low-confidence or unreadable value
 - [x] In-browser OCR (Tesseract.js) with layout detection, Type-A gridline segmentation, Type-B chain gating, ∞/bond-tick/crop handling.
 - [x] Auto-derived Risk Type (validated vs Ryan's sheet), editable; Core/Supp editable.
 - [x] Editable + localStorage-persistent; Reset-to-seed; CSV export.
+- [x] **Capital Requirement CSV import** — drop tastytrade's BP/capital `.csv` export to fill per-position BP $/% (matched by underlying) and the portfolio BP Usage gauge, no OCR. Tolerant header-role detection + `$`/`(neg)`/`%` parsing; per-underlying totals attributed to a position only on a unique symbol match (multi-position symbols feed the summary total only). Verified headless in `js/capreq.test.mjs` (35 assertions).
 - [x] Fee config (OFF by default, no-op).
 - [x] manifest + service worker (app shell incl. all JS modules + Tesseract WASM/traineddata runtime cache). **Offline caveat (honest):** the ~12MB OCR engine is fetched from a CDN on first OCR and cached cache-first by the SW for offline use thereafter; a COLD first visit while offline cannot OCR. The SW caches the jsdelivr/wasm/`traineddata`/Tesseract CDN URLs on first use; `ensureTesseract` surfaces a clear "connect for your first OCR, then it works offline" message instead of a stack trace.
 - [x] Privacy promise visible in the UI.
@@ -211,6 +217,13 @@ Guiding rule throughout: **never fabricate.** Low-confidence or unreadable value
       same CLSD chain never double-books). The unused per-leg `computeRealizedPnl` /
       `chainRealizedPnl` / `buildOccSymbol` ports were pruned this pass to cut surface area.
 - [ ] **Type F fill tickets** intentionally unsupported (no computed P/L).
+- [ ] **Capital Requirement CSV validated against header VARIANTS, not a captured export** —
+      tastytrade's exact column names shift across platform versions, so the parser matches
+      columns by fuzzy role (Requirement/Buying Power Effect, BP Usage %, Initial/Maintenance)
+      and is tested against the shapes the docs describe. A real export should be spot-checked
+      on first use; if a column is missed, the log says so rather than guessing. Per-underlying
+      rows attach to a position only on a unique symbol match — symbols with several open
+      positions feed the portfolio BP-usage total but aren't split across legs.
 - [ ] **Weekly Card render is canvas, not html-to-image** — the brief suggested `html-to-image toPng`, but `chrome-headless-shell` drops its `<foreignObject>` HTML (only background/SVG rasterized → identical output regardless of content). Switched to a deterministic Canvas 2D render, which renders fully, validates headless, and works offline (no CDN). Same artifact, more robust path.
 - [ ] **Review crops are session-only by design** — after a page reload the flag counts persist (metadata) but the crop image is gone (image bytes never stored). You can still edit/confirm from your own copy; the crop only shows during the import session.
 - [ ] **BYOK adapters validated against MOCKS, not live APIs** — request construction, key handling, consent gate, and the mocked-response → review-item flow are verified headless; real calls to OpenRouter/OpenAI/your-local-endpoint need a one-time manual smoke (enable AI assist, paste a key or point at `http://localhost:11434/v1`, click "Read with AI" on a flagged cell). No network calls happen in CI.

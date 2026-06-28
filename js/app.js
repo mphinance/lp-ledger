@@ -3,7 +3,8 @@ import { SEED } from "./seed.js";
 import { computeTrackRecord, deriveBookSummary, deriveRiskType, rangeLabel } from "./engine.js";
 import { drawEquityCurve, drawStrategyBars, gaugeHtml, drawDonut, money, moneyInt } from "./charts.js";
 import { processScreenshot, mergeMonitorParts, forgetImages, cropToDataUrl } from "./ocr.js";
-import { mergeMonitorIntoBook, reconcileClosed, applyTicketToBook, importSpreadsheetIntoBook, activeBook } from "./store.js";
+import { mergeMonitorIntoBook, reconcileClosed, applyTicketToBook, importSpreadsheetIntoBook, applyCapReqToBook, activeBook } from "./store.js";
+import { parseCapitalRequirementCsv } from "./csv.js";
 import { renderQueue, pending as reviewPending, counts as reviewCounts } from "./review.js";
 import { renderCardCanvas, copyCanvasToClipboard, downloadCanvas } from "./card.js";
 import { exportJson, parseImport, readFileText, shouldNudge, daysSinceBackup } from "./backup.js";
@@ -233,9 +234,12 @@ function renderSummary() {
     gaugeHtml("BP Usage", bp.bp_usage_pct, GOLD) +
     gaugeHtml("Trading Usage", bp.trading_usage_pct, VIOLET) +
     gaugeHtml("Stock Usage", bp.stock_usage_pct, BLUE) +
-    `<div class="bp-foot">Total BP committed (book): <b>${money(derived.totalBp)}</b></div>`;
+    `<div class="bp-foot">Total BP committed (book): <b>${money(derived.totalBp)}</b>` +
+    (bp.bp_usage_usd != null ? ` · tasty Capital Req: <b>${money(bp.bp_usage_usd)}</b>${bp.bp_asof ? ` <span class="dim">(${bp.bp_asof})</span>` : ""}` : "") +
+    `</div>`;
 }
 function fmtp(v) { return v != null ? v + "%" : "—"; }
+function round1(n) { return n == null ? null : Math.round((n + Number.EPSILON) * 10) / 10; }
 
 // --- MONITOR panel ----------------------------------------------------------
 function renderMonitor() {
@@ -287,7 +291,7 @@ function initIngest() {
   fileInput.addEventListener("change", (e) => handleFiles([...e.target.files]));
   ["dragenter", "dragover"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
   ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
-  dz.addEventListener("drop", (e) => handleFiles([...e.dataTransfer.files].filter((f) => f.type.startsWith("image/"))));
+  dz.addEventListener("drop", (e) => handleFiles([...e.dataTransfer.files].filter((f) => f.type.startsWith("image/") || isCsv(f))));
   window.addEventListener("paste", (e) => {
     const imgs = [...(e.clipboardData?.items || [])].filter((i) => i.type.startsWith("image/")).map((i) => i.getAsFile());
     if (imgs.length) handleFiles(imgs);
@@ -313,11 +317,16 @@ function initIngest() {
   });
 }
 
+function isCsv(file) {
+  return /csv/i.test(file.type || "") || /\.csv$/i.test(file.name || "");
+}
+
 async function handleFiles(files) {
   if (!files.length) return;
   const log = document.getElementById("ocr-log");
   log.classList.add("show");
   for (const file of files) {
+    if (isCsv(file)) { await handleCsvFile(file); continue; }
     logLine(`Reading ${file.name || "pasted image"}…`, "work");
     try {
       const res = await processScreenshot(file, (m) => {
@@ -329,6 +338,41 @@ async function handleFiles(files) {
     }
   }
   setProgress("");
+}
+
+// Capital Requirement CSV (tastytrade) → BP usage. No OCR; pure text parse.
+async function handleCsvFile(file) {
+  logLine(`Reading ${file.name}…`, "work");
+  let text;
+  try { text = await readFileText(file); }
+  catch (err) { logLine(`✗ ${file.name}: could not read file (${err.message}).`, "err"); return; }
+  const res = parseCapitalRequirementCsv(text);
+  if (!res.ok) {
+    logLine(`✗ ${file.name}: ${res.reason}. Expected the tastytrade Capital Requirement CSV (Symbol + Requirement / BP Usage %).`, "err");
+    return;
+  }
+  ingestCapReq(res, file.name);
+}
+
+function ingestCapReq(res, name) {
+  const captureDate = new Date().toISOString().slice(0, 10);
+  const r = applyCapReqToBook(state.openBook, res, captureDate);
+  // Headline BP usage for the Portfolio Summary gauge comes from the report total.
+  state.summary = state.summary || {};
+  const bp = state.summary.buying_power = state.summary.buying_power || {};
+  if (res.total.bp_pct != null) bp.bp_usage_pct = round1(res.total.bp_pct);
+  if (res.total.bp_usd != null) bp.bp_usage_usd = res.total.bp_usd;
+  bp.bp_source = "capreq";
+  bp.bp_asof = captureDate;
+  save(); renderBook(); renderSummary();
+
+  const parts = [`${res.rows.length} position(s) read`];
+  if (r.filled) parts.push(`${r.filled} BP filled`);
+  if (r.updated) parts.push(`${r.updated} updated`);
+  if (r.ambiguous) parts.push(`${r.ambiguous} multi-position symbol(s) → summary only`);
+  if (r.unmatched.length) parts.push(`${r.unmatched.length} not in book (${r.unmatched.slice(0, 5).join(", ")}${r.unmatched.length > 5 ? "…" : ""})`);
+  const pctTxt = res.total.bp_pct != null ? ` · BP Usage ${round1(res.total.bp_pct)}%` : "";
+  logLine(`✓ ${name}: Capital Requirement CSV — ${parts.join(", ")}${pctTxt}.`, "ok");
 }
 
 function ingestResult(res, name) {

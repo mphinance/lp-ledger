@@ -174,8 +174,8 @@
       <div id="dropzone" class="dropzone">
         <div class="dz-icon">⤓</div>
         <strong>Drop, paste, or click</strong>
-        <span>tastytrade screenshots — they never leave this device</span>
-        <input type="file" id="file-input" accept="image/*" multiple hidden />
+        <span>tastytrade screenshots or a Capital Requirement CSV — they never leave this device</span>
+        <input type="file" id="file-input" accept="image/*,.csv,text/csv" multiple hidden />
       </div>
       <div class="ocr-progress" id="ocr-progress"></div>
       <div class="ocr-log" id="ocr-log"></div>
@@ -188,6 +188,7 @@
         <li><b class="t2">Static</b> Order ticket / Curve (dark) → Max P/L, BP $/%, credit/debit. <i>Captured once per new trade.</i></li>
         <li><b class="t3">Realized</b> Order Chains, fully CLSD (dark) → Track Record.</li>
         <li><b class="tx">One-time</b> Type A Positions Spreadsheet (white grid) → import existing history (back-fill only).</li>
+        <li><b class="t2">CSV</b> tastytrade <b>Capital Requirement</b> export (.csv) → fills BP $/% per position and the portfolio BP Usage gauge. <i>No OCR — read straight from the file.</i></li>
       </ul>
       <div class="sec-label">Fee model</div>
       <label class="fee-toggle"><input type="checkbox" id="fee-enabled" /> Subtract estimated fees (gross → net)</label>
