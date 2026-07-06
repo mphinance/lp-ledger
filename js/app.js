@@ -56,7 +56,7 @@ function initTabs() {
     t.classList.add("active");
     document.getElementById("panel-" + t.dataset.tab).classList.add("active");
     if (t.dataset.tab === "track") renderTrack();
-    if (t.dataset.tab === "review") renderReview();
+    if (t.dataset.tab === "import") { renderStaging(); refreshReviewUI(); }
     if (t.dataset.tab === "share") renderShare();
   }));
 }
@@ -168,6 +168,7 @@ function bookRow(o, i) {
   const needsTag = o.needsStatic ? ` <span class="needs" title="open the order ticket / Curve once to capture Max P/L, BP and credit/debit">⊕ ticket</span>` : "";
   return `<tr data-i="${i}" class="${cls}"${liveTip}>
     <td class="desc" data-edit data-field="trade_description" contenteditable="true">${escapeHtml(o.trade_description || "")}${needsTag}</td>
+    <td class="mono r ${(o.pl_open ?? 0) >= 0 ? "pos" : "neg"}">${o.pl_open != null ? money(o.pl_open, true) : "<span class='dim'>—</span>"}</td>
     <td class="mono r pos" data-edit data-field="credit_rcvd" contenteditable="true">${moneyInt(o.credit_rcvd)}</td>
     <td class="mono r neg" data-edit data-field="debit_paid" contenteditable="true">${moneyInt(o.debit_paid)}</td>
     <td class="mono r" data-edit data-field="max_profit" contenteditable="true">${moneyInt(o.max_profit)}</td>
@@ -241,23 +242,72 @@ function renderSummary() {
 function fmtp(v) { return v != null ? v + "%" : "—"; }
 function round1(n) { return n == null ? null : Math.round((n + Number.EPSILON) * 10) / 10; }
 
-// --- MONITOR panel ----------------------------------------------------------
-function renderMonitor() {
-  const tb = document.querySelector("#monitor-table tbody");
-  const mon = state.monitor || [];
-  if (!mon.length) {
-    tb.innerHTML = `<tr><td colspan="7" class="empty">Drop the dark "Active / Positions Monitor" screenshots (usually 3 stitched), then "Merge stitched". This is the primary open-book source — it refreshes the live P/L on every position.</td></tr>`;
-    return;
+// --- MONITOR STAGING (on the Import panel) ----------------------------------
+// The weekly-monitor slices you dropped, previewed and waiting for you to merge.
+// This is the "eyeball it, then commit" checkpoint — now shown right where you
+// dropped the files instead of hidden behind a separate tab.
+function renderStaging() {
+  const box = document.getElementById("import-staging");
+  if (!box) return;
+  if (!monitorParts.length) { box.hidden = true; box.innerHTML = ""; return; }
+  // mergeMonitorParts is PURE — safe to run for a preview without touching state.
+  const preview = mergeMonitorParts(monitorParts);
+  const nParts = monitorParts.length;
+  box.hidden = false;
+  box.innerHTML = `
+    <div class="card-h">
+      <h2>Weekly monitor — ready to merge</h2>
+      <span class="card-sub"><b>${nParts}</b> slice${nParts > 1 ? "s" : ""} · <b>${preview.length}</b> position${preview.length !== 1 ? "s" : ""} detected</span>
+    </div>
+    <div class="scroll">
+      <table class="data"><thead><tr><th>Symbol</th><th>Strategy</th><th class="r">P/L Open</th><th class="r">Opn%</th><th class="r">Mark</th><th class="r">DTE</th></tr></thead>
+      <tbody>${preview.map((p) => `<tr>
+        <td class="tk">${escapeHtml(p.symbol || "?")}${p.legs && p.legs.length ? ` <span class="dim">·${p.legs.length}L</span>` : ""}</td>
+        <td>${escapeHtml(p.strategy || "")}</td>
+        <td class="mono r ${(p.pl_open ?? 0) >= 0 ? "pos" : "neg"}">${p.pl_open != null ? money(p.pl_open, true) : "—"}</td>
+        <td class="mono r dim">${p.pl_open_pct != null ? p.pl_open_pct + "%" : ""}</td>
+        <td class="mono r dim">${p.mark ?? ""}</td>
+        <td class="mono r dim">${p.dte != null ? p.dte + "d" : ""}</td>
+      </tr>`).join("")}</tbody></table>
+    </div>
+    <div class="staging-actions">
+      <button class="btn primary" id="monitor-merge">Merge &amp; refresh live book →</button>
+      <button class="btn ghost" id="staging-clear">Discard</button>
+    </div>
+    <p class="fineprint">Nothing changes until you merge. After merging, every field stays editable in Live Book — so you can still override anything.</p>`;
+  box.querySelector("#monitor-merge").addEventListener("click", mergeMonitor);
+  box.querySelector("#staging-clear").addEventListener("click", () => {
+    monitorParts = []; renderStaging(); logLine("Discarded the staged monitor slices.", "warn");
+  });
+}
+
+// Commit the staged monitor slices into the persistent open book.
+function mergeMonitor() {
+  if (!monitorParts.length) { logLine("No monitor slices dropped yet.", "warn"); return; }
+  const captureDate = new Date().toISOString().slice(0, 10);
+  // Did any slice read faint? If so we flag the touched rows afterward so a
+  // low-confidence monitor read is actionable instead of a dead log line.
+  const lowConf = monitorParts.some((p) =>
+    (p.flags || []).some((f) => /LOW_CONFIDENCE/.test(f)) || (p.confidence != null && p.confidence < 55));
+  // 1) stitch + de-dup the parts into one position list
+  const positions = mergeMonitorParts(monitorParts);
+  state.monitor = positions;
+  monitorParts = [];
+  // 2) merge LIVE fields into the persistent store (update in place / add new)
+  const { book, updated, added, seenKeys } = mergeMonitorIntoBook(state.openBook, positions, captureDate);
+  state.openBook = book;
+  // 3) positions that dropped off the blotter are closed
+  const closed = reconcileClosed(state.openBook, seenKeys);
+  // 4) retry any tickets captured before their position appeared
+  retryPendingTickets();
+  // 5) faint read → highlight the touched rows in Live Book for a second look
+  if (lowConf) {
+    for (const r of state.openBook) if (r.key && seenKeys.has(r.key)) r.needsReview = true;
   }
-  tb.innerHTML = mon.map((p) => `<tr>
-    <td class="tk">${escapeHtml(p.symbol || "?")}${p.legs && p.legs.length ? ` <span class="dim">·${p.legs.length}L</span>` : ""}</td>
-    <td>${escapeHtml(p.strategy || "")}</td>
-    <td class="mono r ${(p.pl_open ?? 0) >= 0 ? "pos" : "neg"}">${p.pl_open != null ? money(p.pl_open, true) : "—"}</td>
-    <td class="mono r dim">${p.pl_open_pct != null ? p.pl_open_pct + "%" : ""}</td>
-    <td class="mono r dim">${p.mark ?? ""}</td>
-    <td class="mono r dim">${p.days_open != null ? p.days_open + "d" : ""}</td>
-    <td class="mono r dim">${p.dte != null ? p.dte + "d" : ""}</td>
-  </tr>`).join("");
+  save(); renderStaging(); renderBook(); renderTrack(); refreshReviewUI();
+  logLine(`Merged ${positions.length} positions → book: ${updated} updated, ${added} new${closed ? `, ${closed} closed` : ""}.`, "ok");
+  if (lowConf) logLine(`Some rows read faint — they're highlighted (⚠) in Live Book. Open it and double-check them against your screenshot.`, "warn");
+  if (added) logLine(`${added} new position(s) need a one-time ticket/Curve capture (Max P/L, BP, credit/debit). Drop those screens to fill them.`, "warn");
 }
 
 // --- FEE config -------------------------------------------------------------
@@ -295,25 +345,6 @@ function initIngest() {
   window.addEventListener("paste", (e) => {
     const imgs = [...(e.clipboardData?.items || [])].filter((i) => i.type.startsWith("image/")).map((i) => i.getAsFile());
     if (imgs.length) handleFiles(imgs);
-  });
-  document.getElementById("monitor-merge").addEventListener("click", () => {
-    if (!monitorParts.length) { logLine("No monitor parts dropped yet.", "warn"); return; }
-    const captureDate = new Date().toISOString().slice(0, 10);
-    // 1) stitch + de-dup the parts into one position list
-    const positions = mergeMonitorParts(monitorParts);
-    state.monitor = positions;
-    monitorParts = [];
-    // 2) merge LIVE fields into the persistent store (update in place / add new)
-    const { book, updated, added, seenKeys } = mergeMonitorIntoBook(state.openBook, positions, captureDate);
-    state.openBook = book;
-    // 3) positions that dropped off the blotter are closed
-    const closed = reconcileClosed(state.openBook, seenKeys);
-    // 4) retry any tickets captured before their position appeared
-    retryPendingTickets();
-    save(); renderMonitor(); renderBook(); renderTrack();
-    document.getElementById("monitor-merge").classList.remove("show");
-    logLine(`Merged ${positions.length} positions → book: ${updated} updated, ${added} new${closed ? `, ${closed} closed` : ""}.`, "ok");
-    if (added) logLine(`${added} new position(s) need a one-time ticket/Curve capture (Max P/L, BP, credit/debit). Drop those screens to fill them.`, "warn");
   });
 }
 
@@ -432,8 +463,8 @@ function ingestResult(res, name) {
     }
   } else if (res.layout === "monitor") {
     monitorParts.push(res);
-    document.getElementById("monitor-merge").classList.add("show");
-    logLine(`• ${name}: Monitor part (${(res.positions || []).length} positions). Drop all parts, then "Merge stitched" to refresh the live book.${flagTxt}`, "warn");
+    renderStaging();
+    logLine(`• ${name}: monitor slice (${(res.positions || []).length} positions). Drop the rest, then hit “Merge & refresh live book” in the preview below.${flagTxt}`, "warn");
   } else {
     logLine(`• ${name}: ${res.layout} — skipped (context only).${flagTxt}`, "warn");
   }
@@ -545,9 +576,13 @@ function refreshReviewUI() {
     ribbon.classList.toggle("show", ct.total > 0);
     if (ct.total > 0) ribbon.querySelector("b").textContent = ct.total;
   }
-  // if review tab is open, re-render the queue
+  // the inline "confirm flagged reads" section (on Import) only shows when there
+  // is actually something to confirm — keeps a first-time Import screen clean.
+  const revBox = document.getElementById("import-review");
+  if (revBox) revBox.hidden = ct.total === 0;
+  // if Import is open and there are items, (re)render the queue in place
   const active = document.querySelector(".tab.active");
-  if (active && active.dataset.tab === "review") renderReview();
+  if (active && active.dataset.tab === "import" && ct.total > 0) renderReview();
   // book/track rows may have changed via confirmations
   renderBook(); renderTrack(); refreshSampleBanner();
 }
@@ -718,7 +753,7 @@ function refreshSampleBanner() {
 }
 
 function renderAll() {
-  renderTrack(); renderBook(); renderMonitor(); initFees(); refreshReviewUI(); refreshSampleBanner();
+  renderTrack(); renderBook(); renderStaging(); initFees(); refreshReviewUI(); refreshSampleBanner();
 }
 
 // --- boot -------------------------------------------------------------------
@@ -733,7 +768,11 @@ function boot() {
   document.getElementById("reset-seed").addEventListener("click", resetSeed);
   document.getElementById("export-csv").addEventListener("click", exportCsv);
   const goRev = document.getElementById("provisional-go");
-  if (goRev) goRev.addEventListener("click", () => goToTab("review"));
+  if (goRev) goRev.addEventListener("click", () => {
+    goToTab("import");
+    const box = document.getElementById("import-review");
+    if (box && !box.hidden) box.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
   renderAll();
   window.addEventListener("resize", () => {
     const a = document.querySelector(".tab.active");
