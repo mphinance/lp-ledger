@@ -32,12 +32,11 @@
   <nav class="tabs">
     <button class="tab active" data-tab="track">Track Record</button>
     <button class="tab" data-tab="book">Live Book &amp; Risk</button>
-    <button class="tab" data-tab="monitor">Monitor</button>
-    <button class="tab" data-tab="review">Review <span class="tab-badge" id="review-badge">0</span></button>
-    <button class="tab" data-tab="import">Import</button>
+    <button class="tab" data-tab="import">Import <span class="tab-badge" id="review-badge">0</span></button>
     <button class="tab" data-tab="share">Share</button>
   </nav>
   <div class="topright">
+    <button class="btn ghost icon" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
     <span class="privacy-pill" title="100% on-device">🔒 on-device</span>
     <button class="btn ghost" id="export-csv">CSV</button>
     <button class="btn ghost" id="reset-seed">Reset</button>
@@ -96,11 +95,11 @@
 
   <div class="book-layout">
     <div class="card book-card">
-      <div class="card-h"><h2>Open Positions</h2><span class="card-sub">an upgraded mirror of the 10-column tastytrade sheet</span></div>
+      <div class="card-h"><h2>Open Positions</h2><span class="card-sub">your live open book — static risk fields plus live P/L from the weekly monitor drop</span></div>
       <div class="scroll book-scroll">
         <table id="book-table" class="data book">
           <thead><tr>
-            <th>Trade Description</th><th class="r">Credit</th><th class="r">Debit</th>
+            <th>Trade Description</th><th class="r">P/L Open</th><th class="r">Credit</th><th class="r">Debit</th>
             <th class="r">Max Profit</th><th class="r">Max Loss</th><th class="r">BP $</th><th class="r">BP %</th>
             <th>Position</th><th>Risk</th><th class="r">Opened</th>
           </tr></thead>
@@ -125,56 +124,15 @@
   </div>
 </section>
 
-<!-- ============ MONITOR ============ -->
-<section class="panel" id="panel-monitor">
-  <div class="panel-head">
-    <h1>Monitor <span class="srctag mon">source · active monitor · primary live book</span></h1>
-    <button class="btn small" id="monitor-merge">Merge stitched ⛓</button>
-  </div>
-  <div class="card">
-    <div class="card-h"><h2>Live Positions</h2><span class="card-sub">the weekly drop that replaces hand-typing the sheet — refreshes live P/L on every position</span></div>
-    <div class="scroll tall">
-      <table id="monitor-table" class="data"><thead><tr><th>Symbol</th><th>Strategy</th><th class="r">P/L Open</th><th class="r">Opn%</th><th class="r">Mark</th><th class="r">D's Opn</th><th class="r">DTE</th></tr></thead><tbody></tbody></table>
-    </div>
-  </div>
-</section>
-
-<!-- ============ REVIEW ============ -->
-<section class="panel" id="panel-review">
-  <div class="panel-head">
-    <h1>Review &amp; Confirm <span class="srctag rev">confirm a picture, not the source</span></h1>
-    <div class="seedcheck">High-confidence cells auto-accept. You only touch the flagged ones.</div>
-  </div>
-
-  <details class="card vision-card" id="vision-settings">
-    <summary><span class="vs-title">✨ AI assist (BYOK)</span> <span class="vs-state" id="vision-state">off · default engine is on-device Tesseract</span></summary>
-    <div class="vs-body">
-      <p class="vs-note">Optional accelerator for <b>flagged cells only</b>. When you click "Read with AI", <b>only the cropped cell</b> (never the full screenshot) is sent to the endpoint you choose, with your own key. Your key is held in <b>sessionStorage only</b> — never saved to disk, never sent anywhere but that endpoint. Default engine stays on-device; this is opt-in.</p>
-      <label class="vs-toggle"><input type="checkbox" id="vision-enabled" /> Enable AI assist on flagged cells</label>
-      <div class="vs-grid">
-        <label class="ctl">Provider <select id="vision-provider"></select></label>
-        <label class="ctl">Model <input type="text" id="vision-model" placeholder="model id" /></label>
-        <label class="ctl" id="vision-baseurl-wrap">Base URL <input type="text" id="vision-baseurl" placeholder="http://localhost:11434/v1" /></label>
-        <label class="ctl">API key <input type="password" id="vision-key" placeholder="sk-… (sessionStorage only)" autocomplete="off" /></label>
-      </div>
-      <div class="vs-status" id="vision-status"></div>
-    </div>
-  </details>
-
-  <div class="card review-card">
-    <div id="review-queue"></div>
-  </div>
-</section>
-
-<!-- ============ IMPORT ============ -->
+<!-- ============ IMPORT (drop · stage · confirm — all in one place) ============ -->
 <section class="panel" id="panel-import">
   <div class="panel-head"><h1>Import Screenshots</h1></div>
   <div class="import-grid">
     <div class="card">
       <div id="dropzone" class="dropzone">
         <div class="dz-icon">⤓</div>
-        <strong>Drop, paste, or click</strong>
-        <span>tastytrade screenshots or a Capital Requirement CSV — they never leave this device</span>
+        <strong>Drop your screenshots here</strong>
+        <span>Drag in as many tastytrade screenshots as you like <b>at once</b> — or paste (Ctrl/Cmd&#8209;V), or click to pick files. The app figures out what each one is. Nothing leaves this device.</span>
         <input type="file" id="file-input" accept="image/*,.csv,text/csv" multiple hidden />
       </div>
       <div class="ocr-progress" id="ocr-progress"></div>
@@ -182,13 +140,13 @@
     </div>
 
     <div class="card">
-      <div class="card-h"><h2>What it reads</h2></div>
+      <div class="card-h"><h2>What each screenshot does</h2></div>
       <ul class="layouts">
-        <li><b class="t1">Primary</b> Active / Positions Monitor (dark grid) → the live open book. <i>Drop weekly (3 stitched), then Merge.</i></li>
-        <li><b class="t2">Static</b> Order ticket / Curve (dark) → Max P/L, BP $/%, credit/debit. <i>Captured once per new trade.</i></li>
-        <li><b class="t3">Realized</b> Order Chains, fully CLSD (dark) → Track Record.</li>
-        <li><b class="tx">One-time</b> Type A Positions Spreadsheet (white grid) → import existing history (back-fill only).</li>
-        <li><b class="t2">CSV</b> tastytrade <b>Capital Requirement</b> export (.csv) → fills BP $/% per position and the portfolio BP Usage gauge. <i>No OCR — read straight from the file.</i></li>
+        <li><b class="t1">Weekly</b> Your <b>Active / Positions Monitor</b> (the dark grid of open trades) → refreshes live P/L on your open book. Drop all its slices together — a preview appears below so you can check it before it's applied.</li>
+        <li><b class="t2">Per&nbsp;trade</b> The <b>order ticket / Curve</b> → captures Max P/L, buying power, credit/debit. Drop it once, when you open a trade.</li>
+        <li><b class="t3">Closed</b> An <b>order chain marked CLSD</b> → adds the finished trade to your Track Record.</li>
+        <li><b class="tx">History</b> The white <b>Positions Spreadsheet</b> (optional) → one-time back-fill of past trades.</li>
+        <li><b class="t2">CSV</b> tastytrade's <b>Capital Requirement</b> export → fills buying-power usage. No OCR — read straight from the file.</li>
       </ul>
       <div class="sec-label">Fee model</div>
       <label class="fee-toggle"><input type="checkbox" id="fee-enabled" /> Subtract estimated fees (gross → net)</label>
@@ -198,6 +156,37 @@
         <label>Clear/Reg <input type="number" step="0.01" id="fee-clear" /></label>
       </div>
       <p class="fee-note" id="fee-note"></p>
+    </div>
+  </div>
+
+  <!-- Weekly-monitor staging: shows up right here after you drop the slices, so
+       the "eyeball, then merge" checkpoint lives where you dropped the files. -->
+  <div class="card import-staging" id="import-staging" hidden></div>
+
+  <!-- Confirm flagged reads (the old Review tab, now an inline step of importing) -->
+  <div class="import-review" id="import-review" hidden>
+    <div class="panel-head sub">
+      <h2>Confirm flagged reads <span class="srctag rev">confirm a picture, not the source</span></h2>
+      <div class="seedcheck">High-confidence cells auto-accept. You only touch the flagged ones.</div>
+    </div>
+
+    <details class="card vision-card" id="vision-settings">
+      <summary><span class="vs-title">✨ AI assist (BYOK)</span> <span class="vs-state" id="vision-state">off · default engine is on-device Tesseract</span></summary>
+      <div class="vs-body">
+        <p class="vs-note">Optional accelerator for <b>flagged cells only</b>. When you click "Read with AI", <b>only the cropped cell</b> (never the full screenshot) is sent to the endpoint you choose, with your own key. Your key is held in <b>sessionStorage only</b> — never saved to disk, never sent anywhere but that endpoint. Default engine stays on-device; this is opt-in.</p>
+        <label class="vs-toggle"><input type="checkbox" id="vision-enabled" /> Enable AI assist on flagged cells</label>
+        <div class="vs-grid">
+          <label class="ctl">Provider <select id="vision-provider"></select></label>
+          <label class="ctl">Model <input type="text" id="vision-model" placeholder="model id" /></label>
+          <label class="ctl" id="vision-baseurl-wrap">Base URL <input type="text" id="vision-baseurl" placeholder="http://localhost:11434/v1" /></label>
+          <label class="ctl">API key <input type="password" id="vision-key" placeholder="sk-… (sessionStorage only)" autocomplete="off" /></label>
+        </div>
+        <div class="vs-status" id="vision-status"></div>
+      </div>
+    </details>
+
+    <div class="card review-card">
+      <div id="review-queue"></div>
     </div>
   </div>
 </section>

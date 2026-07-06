@@ -48,6 +48,33 @@ export const BRANDS = {
       mono:    '"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace',
     },
 
+    // Dark variant of the LP Ledger skin -- deep navy surfaces + muted gold accent
+    // (kept distinct from the neon "generic" terminal). Selected at runtime by the
+    // theme toggle; falls back to `palette` for brands without a dark variant.
+    darkPalette: {
+      bg:       '#0c1020',
+      bg2:      '#0f1426',
+      surface:  '#151c30',
+      surface2: '#1c2438',
+      surface3: '#252f47',
+      line:     '#2c3650',
+      line2:    '#3c4767',
+      ink:      '#eef1f7',
+      ink2:     '#c4cddf',
+      muted:    '#8a93a8',
+      dim:      '#5f6a84',
+      pos:      '#3ecf8e',
+      posDim:   'rgba(62,207,142,.15)',
+      neg:      '#f4707a',
+      negDim:   'rgba(244,112,122,.15)',
+      // Accent: muted gold reads on navy where the light skin's navy accent can't.
+      accent:   '#d9b45c',
+      accentDim:'rgba(217,180,92,.15)',
+      accentOn: '#0c1020',
+      blue:     '#5b8fd8',
+      violet:   '#a487e6',
+    },
+
     // Canvas-only palette (used by card.js -- CSS vars do not apply on <canvas>)
     card: {
       bg:      '#f4f2ec',
@@ -124,10 +151,13 @@ export function getBrand(id) {
   return BRANDS[id] || BRANDS.lpLedger;
 }
 
-/** Apply a brand preset: sets CSS custom properties on :root + data-brand attr. */
-export function applyBrand(brand) {
+/** Apply a brand preset: sets CSS custom properties on :root + data-brand attr.
+ *  `mode` ('light' | 'dark') selects the palette variant; a brand without a
+ *  darkPalette falls back to its default palette (so the toggle is a no-op there).
+ *  Also stamps data-theme on <html> for the CSS overrides that vars can't reach. */
+export function applyBrand(brand, mode = 'light') {
   const r = document.documentElement;
-  const p = brand.palette;
+  const p = (mode === 'dark' && brand.darkPalette) ? brand.darkPalette : brand.palette;
   const f = brand.fonts;
 
   // Palette
@@ -159,6 +189,8 @@ export function applyBrand(brand) {
 
   // Brand marker -- CSS [data-brand="lpLedger"] selectors key off this
   r.dataset.brand = brand.id;
+  // Theme marker -- CSS [data-theme="dark"] overrides key off this
+  r.dataset.theme = (mode === 'dark' && brand.darkPalette) ? 'dark' : 'light';
 
   // DOM chrome
   const nameEl    = document.getElementById('brand-name');

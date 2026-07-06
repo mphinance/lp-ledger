@@ -46,14 +46,18 @@ the service worker for offline use).
 ## How to use it
 
 1. Open the app. It loads with Ryan's verified seed so you can see the shape of it.
-2. Go to **Import**. Drag, paste (Ctrl/Cmd-V), or click to add tastytrade screenshots.
+2. Go to **Import**. Drag, paste (Ctrl/Cmd-V), or click to add tastytrade screenshots —
+   **drop as many at once as you like**; the app sorts out what each one is.
 3. The app detects the layout, OCRs it on-device, and routes the data. The inputs are
    the tastytrade BROKER screens; the 10-column spreadsheet is the OUTPUT the app
    assembles for you (it replaces the sheet, so it never reads it as a live input):
-   - **Active / Positions Monitor (Type E)** → the **PRIMARY open book**. Drop it weekly
-     (usually 3 stitched images), hit **Merge stitched**, and it refreshes the LIVE fields
-     (P/L Open, P/L Opn%, Mark, Trade Price, Days Open, DTE) on every position. New names are
-     added and flagged for a one-time ticket capture.
+   - **Active / Positions Monitor (Type E)** → the **PRIMARY open book**. Drop its slices
+     weekly (usually 3 stitched images) — a **preview appears right on the Import panel** so
+     you can eyeball it, then hit **Merge & refresh live book**. That refreshes the LIVE fields
+     (P/L Open, P/L Opn%, Mark, Trade Price, Days Open, DTE) on every position; the headline
+     **P/L Open** now shows as a column in the Live Book. New names are added and flagged for a
+     one-time ticket capture. (Nothing is committed until you merge, and every field stays
+     editable afterward — so the merge is a checkpoint, not a point of no return.)
    - **Order ticket / Curve (Type C)** → the per-trade **STATIC detail** captured once at open:
      Max Profit, Max Loss, BP $/%, Credit/Debit. These don't change after entry.
    - **Order Chains, fully CLSD (Type B)** → books a realized trade onto the **Track Record**.
@@ -63,10 +67,15 @@ the service worker for offline use).
      positions risk panel to **import your BP Usage** without OCR. It fills each position's
      **BP $/%** (matched by underlying) and drives the portfolio **BP Usage** gauge from the
      report total. Read straight from the file — never uploaded, same on-device promise.
-4. **Edit anything.** Every Live Book cell is click-to-edit; Position (Core/Supp) and Risk
-   (Def/Undef) are dropdowns. Low-confidence OCR cells are highlighted "needs review".
+4. **Confirm the flagged reads.** Anything OCR wasn't sure about surfaces in a **Confirm
+   flagged reads** queue *right on the Import panel* (the number on the **Import** tab counts
+   them) — you confirm a cropped picture, not the source. High-confidence cells auto-accept.
+   Every Live Book cell is also click-to-edit; Position (Core/Supp) and Risk (Def/Undef) are
+   dropdowns, and low-confidence rows are highlighted "needs review".
 5. **Reset** restores Ryan's seed. **Export** downloads your track record as CSV.
 6. **Install** it (browser "Install app") for an offline, standalone PWA.
+7. Toggle **dark / light** with the 🌙 / ☀️ button in the top bar. It follows your OS
+   preference on first load and remembers your explicit choice after that.
 
 ### Risk Type & Position Type
 - **Risk Type is auto-derived** and editable: spreads / butterflies / condors / zebras /
@@ -191,7 +200,11 @@ Guiding rule throughout: **never fabricate.** Low-confidence or unreadable value
 - [x] `docs/.nojekyll` created.
 - [x] Track Record panel: equity curve, win rate, avg win/loss, profit factor, per-strategy, best/worst — **reconciles to +$33,520.37 / 81.8% / 6.67 over 88 closed trades** (Feb–Jun 2026, verified headless in `js/repoint.test.mjs`). Honest range label on the panel + Weekly Card; sign/arrow glyph (▲/▼) on gains/losses for colorblind readability.
 - [x] Live Book & Risk panel mirroring Ryan's 10-column sheet + Portfolio Summary (mix/risk donuts, BP gauges).
-- [x] Monitor panel (Type E) — PRIMARY structured parser feeding the persistent position store.
+- [x] Weekly-monitor merge (Type E) — PRIMARY structured parser feeding the persistent position
+      store. The staging preview + **Merge & refresh live book** button and the flagged-cell
+      confirm queue now live **inline on the Import panel** (Monitor and Review are no longer
+      separate tabs — the app is down to Track Record · Live Book · Import · Share). Live P/L
+      Open shows as a column in the Live Book.
 - [x] In-browser OCR (Tesseract.js) with layout detection, Type-A gridline segmentation, Type-B chain gating, ∞/bond-tick/crop handling.
 - [x] Auto-derived Risk Type (validated vs Ryan's sheet), editable; Core/Supp editable.
 - [x] Editable + localStorage-persistent; Reset-to-seed; CSV export.
