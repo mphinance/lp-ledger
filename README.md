@@ -74,6 +74,8 @@ the service worker for offline use).
    dropdowns, and low-confidence rows are highlighted "needs review".
 5. **Reset** restores Ryan's seed. **Export** downloads your track record as CSV.
 6. **Install** it (browser "Install app") for an offline, standalone PWA.
+7. Toggle **dark / light** with the 🌙 / ☀️ button in the top bar. It follows your OS
+   preference on first load and remembers your explicit choice after that.
 
 ### Risk Type & Position Type
 - **Risk Type is auto-derived** and editable: spreads / butterflies / condors / zebras /

@@ -756,10 +756,27 @@ function renderAll() {
   renderTrack(); renderBook(); renderStaging(); initFees(); refreshReviewUI(); refreshSampleBanner();
 }
 
+// --- theme (light / dark) ---------------------------------------------------
+const THEME_KEY = "tt-tracker-theme";
+// Explicit user choice wins; otherwise follow the OS preference on first load.
+function loadTheme() {
+  const stored = localStorage.getItem(THEME_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) ? "dark" : "light";
+}
+function applyTheme(mode) {
+  applyBrand(getBrand(ACTIVE_BRAND), mode);
+  const dark = document.documentElement.dataset.theme === "dark";
+  const btn = document.getElementById("theme-toggle");
+  if (btn) { btn.textContent = dark ? "☀️" : "🌙"; btn.title = dark ? "Switch to light mode" : "Switch to dark mode"; }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.setAttribute("content", dark ? "#0c1020" : "#1b2a4a");
+}
+
 // --- boot -------------------------------------------------------------------
 function boot() {
-  // Apply brand config first -- sets CSS vars, data-brand attr, DOM chrome.
-  applyBrand(getBrand(ACTIVE_BRAND));
+  // Apply brand config + theme first -- sets CSS vars, data-brand/data-theme, chrome.
+  applyTheme(loadTheme());
 
   initTabs();
   initIngest();
@@ -767,6 +784,13 @@ function boot() {
   initVision();
   document.getElementById("reset-seed").addEventListener("click", resetSeed);
   document.getElementById("export-csv").addEventListener("click", exportCsv);
+  const themeBtn = document.getElementById("theme-toggle");
+  if (themeBtn) themeBtn.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem(THEME_KEY, next);
+    applyTheme(next);
+    renderAll(); // re-render the visible charts/tables under the new palette
+  });
   const goRev = document.getElementById("provisional-go");
   if (goRev) goRev.addEventListener("click", () => {
     goToTab("import");
