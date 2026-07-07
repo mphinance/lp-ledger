@@ -140,14 +140,26 @@
     </div>
 
     <div class="card">
-      <div class="card-h"><h2>What each screenshot does</h2></div>
-      <ul class="layouts">
-        <li><b class="t1">Weekly</b> Your <b>Active / Positions Monitor</b> (the dark grid of open trades) → refreshes live P/L on your open book. Drop all its slices together — a preview appears below so you can check it before it's applied.</li>
-        <li><b class="t2">Per&nbsp;trade</b> The <b>order ticket / Curve</b> → captures Max P/L, buying power, credit/debit. Drop it once, when you open a trade.</li>
-        <li><b class="t3">Closed</b> An <b>order chain marked CLSD</b> → adds the finished trade to your Track Record.</li>
-        <li><b class="tx">History</b> The white <b>Positions Spreadsheet</b> (optional) → one-time back-fill of past trades.</li>
-        <li><b class="t2">CSV</b> tastytrade's <b>Capital Requirement</b> export → fills buying-power usage. No OCR — read straight from the file.</li>
-      </ul>
+      <div class="card-h"><h2>How to import</h2><span class="card-sub">3 steps · everything stays on this device</span></div>
+      <ol class="steps">
+        <li>
+          <div class="step-t">Grab these screenshots from tastytrade</div>
+          <ul class="step-what">
+            <li><b class="t1">Weekly</b> your <b>Active / Positions Monitor</b> — the dark grid of open trades (drop all its slices together)</li>
+            <li><b class="t2">Per&nbsp;trade</b> the <b>order ticket / Curve</b> for each trade you open — Max P/L, buying power, credit/debit</li>
+            <li><b class="t3">Closed</b> any <b>order chain marked CLSD</b> — these become your Track Record</li>
+            <li><b class="tx">Optional</b> the white <b>Positions Spreadsheet</b> to back-fill old trades, or the <b>Capital Requirement CSV</b> for buying-power usage</li>
+          </ul>
+        </li>
+        <li>
+          <div class="step-t">Drop them all into the box on the left</div>
+          <p class="step-d">One pile, any order — paste (Ctrl/Cmd&#8209;V), drag, or click. The app reads each screenshot <b>on your device</b> and figures out what it is. Nothing is uploaded.</p>
+        </li>
+        <li>
+          <div class="step-t">Eyeball the preview, then merge &amp; confirm</div>
+          <p class="step-d">A weekly-monitor preview appears below — check it, then hit <b>Merge &amp; refresh live book</b>. If any reads look shaky, the app flags them under <b>Confirm flagged reads</b> for a quick yes/no. That's it.</p>
+        </li>
+      </ol>
       <div class="sec-label">Fee model</div>
       <label class="fee-toggle"><input type="checkbox" id="fee-enabled" /> Subtract estimated fees (gross → net)</label>
       <div class="fee-inputs">
