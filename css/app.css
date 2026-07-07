@@ -520,6 +520,9 @@ tr.needstatic { background: rgba(74,144,226,.05) !important; }
 
 /* topbar theme toggle */
 .btn.icon { padding: 6px 8px; font-size: 14px; line-height: 1; }
+.theme-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.theme-toggle #theme-ico { font-size: 14px; line-height: 1; }
+.theme-toggle #theme-lbl { font-weight: 600; }
 
 /* ---------- responsive ---------- */
 @media (max-width: 980px) {
@@ -532,5 +535,7 @@ tr.needstatic { background: rgba(74,144,226,.05) !important; }
 }
 @media (max-width: 560px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }
-  .topright .btn { display: none; }
+  /* keep the theme toggle reachable on phones; only CSV/Reset fold away */
+  .topright .btn:not(.theme-toggle) { display: none; }
+  .theme-toggle #theme-lbl { display: none; } /* icon-only to save width */
 }
