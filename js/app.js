@@ -768,7 +768,16 @@ function applyTheme(mode) {
   applyBrand(getBrand(ACTIVE_BRAND), mode);
   const dark = document.documentElement.dataset.theme === "dark";
   const btn = document.getElementById("theme-toggle");
-  if (btn) { btn.textContent = dark ? "☀️" : "🌙"; btn.title = dark ? "Switch to light mode" : "Switch to dark mode"; }
+  if (btn) {
+    const ico = document.getElementById("theme-ico");
+    const lbl = document.getElementById("theme-lbl");
+    // Button advertises the mode it switches TO, so the label reads as an action.
+    if (ico) ico.textContent = dark ? "☀️" : "🌙";
+    if (lbl) lbl.textContent = dark ? "Light" : "Dark";
+    const tip = dark ? "Switch to light mode" : "Switch to dark mode";
+    btn.title = tip;
+    btn.setAttribute("aria-label", tip);
+  }
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", dark ? "#0c1020" : "#1b2a4a");
 }
